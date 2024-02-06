@@ -57,7 +57,14 @@ fn main() {
         let mut queue = task_queue.lock().expect("Couldn't lock task queue in main");
 
         queue.push_back(Task { id: sleep_duration as usize });
-        println!("\tQueued task {sleep_duration}, queue is now {} long", queue.len());
+
+        let new_len = queue.len();
+
+        // Free the lock early
+        drop(queue);
+
+        // A potentially expensive calculation follows
+        println!("\tQueued task {sleep_duration}, queue is now {} long", new_len);
     }
 
     // Collect child threads and exit
