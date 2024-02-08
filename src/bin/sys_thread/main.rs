@@ -8,20 +8,37 @@ use rand::Rng;
 
 
 struct Task {
-    id: usize
+    parameter: usize
 }
 
 impl Task {
     // Some expensive calculation
     fn execute(&self) {
-        thread::sleep(Duration::from_millis((self.id * 10) as u64));
+        thread::sleep(Duration::from_millis(self.parameter as u64));
     }
 }
 
 const NUM_TASKS: usize = 200;
 const NUM_THREADS: usize = 5;
-const MIN_WAIT_TIME_MILLIS: u64 = 10;
-const MAX_WAIT_TIME_MILLIS: u64 = 40;
+const MIN_PARAM: usize = 100;
+const MAX_PARAM: usize = 400;
+
+fn task_handler(task_queue: Arc<Mutex<VecDeque<Task>>>) {
+    loop {
+        let mut queue = task_queue.lock().expect("Couldn't lock task queue in child");
+        let task = queue.pop_front();
+
+        // Free the lock early while executing
+        drop(queue);
+
+        if let Some(task) = task {
+            task.execute();
+            println!("Thread {} executed task {}", thread::current().name().unwrap(), task.parameter);
+        } else {
+            thread::sleep(Duration::from_millis(1));
+        }
+    }
+}
 
 
 fn main() {
@@ -30,41 +47,24 @@ fn main() {
     // Spawn child thread(s)
     let handles: Vec<thread::JoinHandle<_>> = (0..NUM_THREADS).map(|id| {
         let task_queue_clone = task_queue.clone();
-        std::thread::Builder::new().name(format!("{id}")).spawn(move || {
-            loop {
-                let mut queue = task_queue_clone.lock().expect("Couldn't lock task queue in child");
-                let task = queue.pop_front();
 
-                // Free the lock early
-                drop(queue);
-
-                if let Some(task) = task {
-                    task.execute();
-                    println!("Thread {} executed task {}", thread::current().name().unwrap(), task.id);
-                } else {
-                    thread::sleep(Duration::from_millis(1));
-                }
-            }
-        }).unwrap()
+        std::thread::Builder::new()
+            .name(format!("{id}"))
+            .spawn(|| task_handler(task_queue_clone))
+            .unwrap()
     }).collect();
 
     // Randomly queue tasks
     let mut rng = rand::thread_rng();
     for _ in 0..NUM_TASKS {
-        let sleep_duration = rng.gen_range(MIN_WAIT_TIME_MILLIS..MAX_WAIT_TIME_MILLIS);
-        thread::sleep(Duration::from_millis(sleep_duration));
+        let parameter = rng.gen_range(MIN_PARAM..MAX_PARAM);
 
         let mut queue = task_queue.lock().expect("Couldn't lock task queue in main");
 
-        queue.push_back(Task { id: sleep_duration as usize });
-
-        let new_len = queue.len();
-
-        // Free the lock early
-        drop(queue);
+        queue.push_back(Task { parameter: parameter as usize });
 
         // A potentially expensive calculation follows
-        println!("\tQueued task {sleep_duration}, queue is now {} long", new_len);
+        println!("\tQueued task {parameter}");
     }
 
     // Collect child threads and exit
