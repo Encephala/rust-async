@@ -5,8 +5,8 @@ use std::collections::VecDeque;
 
 use std::time::Duration;
 
-const NUM_TASKS: usize = 200;
-const NUM_THREADS: usize = 6;
+const NUM_TASKS: usize = 1000;
+const NUM_THREADS: usize = 10;
 const MAX_PARAM: usize = 10_000_000;
 
 fn expensive_calculation() {
@@ -32,6 +32,12 @@ fn task_handler(task_queue: Arc<Mutex<VecDeque<Task>>>) {
 
         if let Some(task) = task {
             task.execute();
+
+            // Hacky way to make threads exit
+            // Relies on tasks being executed linearly, which they seem to be
+            if (NUM_TASKS - NUM_THREADS..NUM_TASKS).contains(&task.parameter) {
+                break;
+            }
         } else {
             thread::sleep(Duration::from_millis(1));
         }
@@ -58,7 +64,6 @@ fn main() {
         queue.push_back(Task { parameter: i });
 
         // A potentially expensive calculation follows
-        println!("\tQueued task {i}");
     }
 
     // Collect child threads and exit

@@ -2,8 +2,8 @@ use async_std::task::block_on;
 // https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html
 use futures::future::join_all;
 
-const NUM_TASKS: usize = 200;
-const NUM_THREADS: usize = 6;
+const NUM_TASKS: usize = 1000;
+const NUM_THREADS: usize = 10;
 const MAX_PARAM: usize = 10_000_000;
 
 fn expensive_calculation() {
@@ -30,8 +30,6 @@ async fn process_task(task: Task) -> usize {
 async fn spawn_tasks(runtime: tokio::runtime::Runtime) {
     // Spawn tasks, collect future
     let task_futures: Vec<_> = (0..NUM_TASKS).map(|i| {
-        println!("\tQueued task {i}");
-
         runtime.spawn(process_task(Task { id: i }))
     }).collect();
 

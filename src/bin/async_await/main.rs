@@ -1,7 +1,7 @@
 // https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html
 use futures::{executor::block_on, future::join_all};
 
-const NUM_TASKS: usize = 200;
+const NUM_TASKS: usize = 1000;
 const MAX_PARAM: usize = 10_000_000;
 
 fn expensive_calculation() {
@@ -28,13 +28,11 @@ async fn process_task(task: Task) -> usize {
 async fn spawn_tasks() {
     // Spawn tasks, collect future
     let task_futures: Vec<_> = (0..NUM_TASKS).map(|i| {
-        println!("\tQueued task {i}");
-
         process_task(Task { id: i })
     }).collect();
 
     // Execute all tasks
-    println!("Joined everything: {:?}", join_all(task_futures).await);
+    join_all(task_futures).await;
 }
 
 fn main() {
