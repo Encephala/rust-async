@@ -5,6 +5,10 @@ use futures::{executor::block_on, future::join_all};
 use std::time::Duration;
 use rand::Rng;
 
+fn expensive_calculation() {
+    let _: Vec<_> = (0..MAX_PARAM).map(|n| f64::sqrt(n as f64)).collect();
+}
+
 struct Task {
     id: usize
 }

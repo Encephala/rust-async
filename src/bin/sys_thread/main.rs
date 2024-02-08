@@ -6,6 +6,13 @@ use std::collections::VecDeque;
 use std::time::Duration;
 use rand::Rng;
 
+const NUM_TASKS: usize = 200;
+const NUM_THREADS: usize = 6;
+const MAX_PARAM: usize = 10_000_000;
+
+fn expensive_calculation() {
+    let _: Vec<_> = (0..MAX_PARAM).map(|n| f64::sqrt(n as f64)).collect();
+}
 
 struct Task {
     parameter: usize
@@ -14,32 +21,21 @@ struct Task {
 impl Task {
     // Some expensive calculation
     fn execute(&self) {
-        thread::sleep(Duration::from_millis(self.parameter as u64));
+        expensive_calculation();
+        println!("Thread {} executed task {}", thread::current().name().unwrap(), self.parameter);
     }
 }
 
-const NUM_TASKS: usize = 200;
-const NUM_THREADS: usize = 5;
-const MIN_PARAM: usize = 100;
-const MAX_PARAM: usize = 400;
-
 fn task_handler(task_queue: Arc<Mutex<VecDeque<Task>>>) {
     loop {
-        let mut queue = task_queue.lock().expect("Couldn't lock task queue in child");
-        let task = queue.pop_front();
-
-        // Free the lock early while executing
-        drop(queue);
-
-        if let Some(task) = task {
+        // RAII drops the mutex guard
+        if let Some(task) = task_queue.lock().expect("Couldn't lock task queue in child").pop_front() {
             task.execute();
-            println!("Thread {} executed task {}", thread::current().name().unwrap(), task.parameter);
         } else {
             thread::sleep(Duration::from_millis(1));
         }
     }
 }
-
 
 fn main() {
     let task_queue = Arc::from(Mutex::new(VecDeque::<Task>::new()));
@@ -57,11 +53,11 @@ fn main() {
     // Randomly queue tasks
     let mut rng = rand::thread_rng();
     for _ in 0..NUM_TASKS {
-        let parameter = rng.gen_range(MIN_PARAM..MAX_PARAM);
+        let parameter = rng.gen_range(0..MAX_PARAM);
 
         let mut queue = task_queue.lock().expect("Couldn't lock task queue in main");
 
-        queue.push_back(Task { parameter: parameter as usize });
+        queue.push_back(Task { parameter: parameter });
 
         // A potentially expensive calculation follows
         println!("\tQueued task {parameter}");
