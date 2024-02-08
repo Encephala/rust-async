@@ -9,3 +9,4 @@ edition = "2021"
 rand = "*"
 futures = "*"
 async-std = "*"
+tokio = { version = "1", features=  ["full"]}
