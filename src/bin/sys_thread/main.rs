@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
 
 use std::time::Duration;
-use rand::Rng;
 
 const NUM_TASKS: usize = 200;
 const NUM_THREADS: usize = 6;
@@ -28,8 +27,10 @@ impl Task {
 
 fn task_handler(task_queue: Arc<Mutex<VecDeque<Task>>>) {
     loop {
-        // RAII drops the mutex guard
-        if let Some(task) = task_queue.lock().expect("Couldn't lock task queue in child").pop_front() {
+        // RAII drops the mutex
+        let task = task_queue.lock().expect("Couldn't lock task queue in child").pop_front();
+
+        if let Some(task) = task {
             task.execute();
         } else {
             thread::sleep(Duration::from_millis(1));
@@ -51,16 +52,13 @@ fn main() {
     }).collect();
 
     // Randomly queue tasks
-    let mut rng = rand::thread_rng();
-    for _ in 0..NUM_TASKS {
-        let parameter = rng.gen_range(0..MAX_PARAM);
-
+    for i in 0..NUM_TASKS {
         let mut queue = task_queue.lock().expect("Couldn't lock task queue in main");
 
-        queue.push_back(Task { parameter: parameter });
+        queue.push_back(Task { parameter: i });
 
         // A potentially expensive calculation follows
-        println!("\tQueued task {parameter}");
+        println!("\tQueued task {i}");
     }
 
     // Collect child threads and exit
